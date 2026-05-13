@@ -5,7 +5,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { parseRawCitation, transformWithTemplate, CitationType } from "./lib/citationEngine";
-import { Copy, CheckSquare, Square, FileText, Book, Globe, Mic, ChevronDown, ChevronRight } from "lucide-react";
+import { Copy, CheckSquare, Square, FileText, Book, Globe, Mic, ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
 
 export default function App() {
   const [inputText, setInputText] = useState("");
@@ -152,6 +152,14 @@ export default function App() {
 
       <main className="flex-1 flex flex-col p-4 sm:p-6 gap-4 sm:gap-6 z-10 w-full max-w-7xl mx-auto xl:max-w-none min-h-0">
         
+        {/* Warning Banner */}
+        <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 sm:p-4 text-amber-200/90 shrink-0">
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-500" />
+          <div className="text-sm font-light leading-relaxed">
+            <span className="font-medium text-amber-500">Perhatian:</span> Harap periksa kembali hasil pustaka yang dihasilkan. Format keluaran bisa jadi belum sepenuhnya sesuai.
+          </div>
+        </div>
+
         {/* Top Control Bar */}
         <section className="glass-card rounded-2xl p-3 sm:p-4 shrink-0 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
@@ -220,7 +228,7 @@ export default function App() {
           >
             <div className="flex flex-col items-start text-left">
               <span className="text-white text-sm">Sesuaikan Acuan Format</span>
-              <span className="text-[10px] text-gray-500 mt-0.5">Edit struktur format bibliography untuk tiap tipe</span>
+              <span className="text-[10px] text-gray-500 mt-0.5">Edit struktur format pustaka untuk tiap tipe</span>
             </div>
             <div className="p-1 rounded-full bg-white/5">
               {isTemplatesOpen ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}

@@ -25,7 +25,7 @@ export interface ParsedCitation {
 export function parseRawCitation(line: string): ParsedCitation {
   const trimmed = line.trim();
   let type: CitationType = 'unknown';
-  
+
   if (!trimmed) {
     return { original: line, type, authors: [], year: '', title: '', isValid: false };
   }
@@ -42,7 +42,7 @@ export function parseRawCitation(line: string): ParsedCitation {
 
   // Tangani format APA: (2024) maupun (2024, October) atau (2024, Oktober 12)
   const yearMatch = trimmed.match(/(.*?)\s*\(\s*(\d{4}[a-z]?)\b[^)]*\)[.,]?\s*(.*)/i) ||
-                    trimmed.match(/(.*?)\s*\.\s+\[?(19\d{2}|20\d{2})[a-z]?\]?\.?\s+(.*)/i);
+    trimmed.match(/(.*?)\s*\.\s+\[?(19\d{2}|20\d{2})[a-z]?\]?\.?\s+(.*)/i);
 
   if (yearMatch) {
     authorsRaw = yearMatch[1].trim();
@@ -71,7 +71,7 @@ export function parseRawCitation(line: string): ParsedCitation {
   } else {
     const splitRegex = /\s+(?:&|and|dan)\s+|;\s*/i;
     let parts = authorsRaw.split(splitRegex).map(s => s.trim()).filter(Boolean);
-    
+
     for (const part of parts) {
       if (part.split(',').length > 2) {
         const subparts = part.split(/\.,\s*/);
@@ -84,7 +84,7 @@ export function parseRawCitation(line: string): ParsedCitation {
         authors.push(part);
       }
     }
-    
+
     authors = authors.map(a => {
       let clean = a.replace(/^[A-Z]\.,\s*/, '').replace(/,\s*$/, '').trim();
       return clean;
@@ -92,7 +92,7 @@ export function parseRawCitation(line: string): ParsedCitation {
   }
 
   let title = '';
-  
+
   // Website
   const urlMatch = rest.match(/(https?:\/\/[^\s]+)/);
   if (urlMatch || rest.toLowerCase().includes('diakses') || rest.toLowerCase().includes('accessed') || rest.toLowerCase().includes('www.')) {
@@ -100,7 +100,7 @@ export function parseRawCitation(line: string): ParsedCitation {
     let url = urlMatch ? urlMatch[1] : '';
     let accessMatch = rest.match(/diakses\s+([^)]+)/i) || rest.match(/accessed\s+([^)]+)/i) || rest.match(/\(([^)]+)\)\.?$/i);
     let accessDate = accessMatch ? accessMatch[1].trim().replace(/diakses\s+/i, '') : '';
-    
+
     // Fix: jika URL menelan tanda kurung pembuka (tanggal menempel ke URL tanpa spasi)
     // Contoh: https://...sensor(29 September 2020) → hapus "(29" dari URL
     const incompleteParenInUrl = url.match(/\([^)]*$/);
@@ -126,18 +126,18 @@ export function parseRawCitation(line: string): ParsedCitation {
   // Pola 2: "In Prosiding/Proceeding" tanpa titik dua (format APA)
   // Pola 3: langsung dimulai dengan "Prosiding" atau "Proceeding"
   const confMatch = rest.match(/^(.*?)\.\s+(?:Dalam\s*:?\s*|\bIn\b\s*:\s*)(.*)$/i) ||
-                    rest.match(/^(.*?)\.\s+\bIn\b\s+(Prosiding\b.*|Proceeding\b.*)$/i) ||
-                    rest.match(/^(.*?)\.\s+(Prosiding\b.*|Proceeding\b.*)$/i);
-  
+    rest.match(/^(.*?)\.\s+\bIn\b\s+(Prosiding\b.*|Proceeding\b.*)$/i) ||
+    rest.match(/^(.*?)\.\s+(Prosiding\b.*|Proceeding\b.*)$/i);
+
   if (confMatch) {
     type = 'paper-conference';
     title = confMatch[1].trim();
     let remainder = confMatch[2].trim();
-    
+
     let proceedingName = remainder;
     let city = '';
     let pages = '';
-    
+
     const pageMatch = remainder.match(/(?:\(\s*pp\.\s*|,\s*p\.\s*|,\s*|,\s*pp\.\s*|:\s*|,\s*hlm\.\s*|\b)(\d+\s*-\s*\d+)\)?\.?$/i);
     if (pageMatch) {
       pages = pageMatch[1];
@@ -148,17 +148,17 @@ export function parseRawCitation(line: string): ParsedCitation {
 
     let date = '';
     let country = '';
-    
+
     // Try to extract date and city from proceedingName
     // e.g., "Proceeding Seminar Nasional Teknik dan Manajemen Industri. 12 Februari 2015. Malang, Indonesia"
     const parts = proceedingName.split(/\.\s+/);
     if (parts.length >= 3 && /\d{4}/.test(parts[parts.length - 2])) {
-       city = parts.pop()!.trim();
-       date = parts.pop()!.trim();
-       proceedingName = parts.join('. ').trim();
+      city = parts.pop()!.trim();
+      date = parts.pop()!.trim();
+      proceedingName = parts.join('. ').trim();
     } else if (parts.length >= 2 && /\d{4}/.test(parts[parts.length - 1])) {
-       date = parts.pop()!.trim();
-       proceedingName = parts.join('. ').trim();
+      date = parts.pop()!.trim();
+      proceedingName = parts.join('. ').trim();
     }
 
     // Pisahkan kota dan negara jika city mengandung koma
@@ -176,17 +176,17 @@ export function parseRawCitation(line: string): ParsedCitation {
   }
 
   // Journal
-  const journalEndMatch = rest.match(/(?:(\d+)\s*)?\(\s*([\w\-–\/]+)\s*\)\s*[:,]?\s*([\d\sA-Za-z-–]+)?\.?$/) || 
-                          rest.match(/vol(?:ume|\.)?\s*(\d+).*?(?:no(?:mor|\.)?\s*([\w\-–\/]+))?.*?([\d\sA-Za-z-–]+)?\.?$/i) ||
-                          rest.match(/(?:\b(\d+)\b\s*(?:[:,]\s*|\s+))?(\d+\s*-\s*\d+)\.?$/) || // volume, pages (range)
-                          rest.match(/(?:,\s*|:\s*|\bvol(?:ume|\.)?\s*)(\d+)\.?$/i); // just volume at the end
+  const journalEndMatch = rest.match(/(?:(\d+)\s*)?\(\s*([\w\-–\/]+)\s*\)\s*[:,]?\s*([\d\sA-Za-z-–]+)?\.?$/) ||
+    rest.match(/vol(?:ume|\.)?\s*(\d+).*?(?:no(?:mor|\.)?\s*([\w\-–\/]+))?.*?([\d\sA-Za-z-–]+)?\.?$/i) ||
+    rest.match(/(?:\b(\d+)\b\s*(?:[:,]\s*|\s+))?(\d+\s*-\s*\d+)\.?$/) || // volume, pages (range)
+    rest.match(/(?:,\s*|:\s*|\bvol(?:ume|\.)?\s*)(\d+)\.?$/i); // just volume at the end
 
   if (journalEndMatch && !rest.toLowerCase().includes('press') && !rest.toLowerCase().includes('penerbit')) {
     type = 'article-journal';
     let volume = journalEndMatch[1] || '';
     let issue = '';
     let pages = '';
-    
+
     if (journalEndMatch[0].includes('(') || (rest.match(/vol/i) && journalEndMatch.length >= 3 && journalEndMatch[2])) {
       issue = journalEndMatch[2] || '';
       pages = journalEndMatch[3] ? journalEndMatch[3].trim() : '';
@@ -197,11 +197,11 @@ export function parseRawCitation(line: string): ParsedCitation {
       // Fourth match case: just volume
       volume = journalEndMatch[1];
     }
-    
+
     let beforeEnd = rest.substring(0, rest.length - journalEndMatch[0].length).trim();
     const splitIndex = Math.max(beforeEnd.lastIndexOf('. '), beforeEnd.lastIndexOf('? '), beforeEnd.lastIndexOf('! '));
     let journalName = '';
-    
+
     if (splitIndex !== -1) {
       title = beforeEnd.substring(0, splitIndex + 1).trim();
       journalName = beforeEnd.substring(splitIndex + 1).trim();
@@ -214,7 +214,7 @@ export function parseRawCitation(line: string): ParsedCitation {
 
     return { original: line, type, authors, year, title, journal: journalName, volume, issue, pages, isValid: true };
   }
-  
+
   // Book
   type = 'book';
   let publisher = '';
@@ -232,16 +232,16 @@ export function parseRawCitation(line: string): ParsedCitation {
   } else {
     let cleanRest = rest.replace(/\.$/, '');
     const dotParts = cleanRest.split(/\.\s+/);
-    
+
     if (dotParts.length >= 2) {
       let lastPart = dotParts.pop() || '';
       title = dotParts.join('. ').trim();
-      
+
       if (lastPart.includes(':')) {
         const colonSplit = lastPart.split(/:\s*/);
         city = colonSplit[0].trim();
         publisher = colonSplit[1].trim();
-        
+
         const pagesMatch = publisher.match(/,\s*(\d+)\s*(?:hlm|pages|p)\.?$/i);
         if (pagesMatch) {
           pages = pagesMatch[1];
@@ -251,15 +251,15 @@ export function parseRawCitation(line: string): ParsedCitation {
         const commaSplit = lastPart.split(/,\s*/);
         publisher = commaSplit[0].trim();
         if (commaSplit.length > 1) {
-           city = commaSplit[1].trim();
+          city = commaSplit[1].trim();
         }
-        
+
         let areaToExtractPagesFrom = city || publisher;
         const pagesMatch = areaToExtractPagesFrom.match(/(?:,\s*|\s+)(\d+)\s*(?:hlm|pages|p)\.?$/i);
         if (pagesMatch) {
-            pages = pagesMatch[1];
-            if (city) city = city.replace(pagesMatch[0], '').trim();
-            else publisher = publisher.replace(pagesMatch[0], '').trim();
+          pages = pagesMatch[1];
+          if (city) city = city.replace(pagesMatch[0], '').trim();
+          else publisher = publisher.replace(pagesMatch[0], '').trim();
         }
       }
     } else {
@@ -278,20 +278,20 @@ export function parseRawCitation(line: string): ParsedCitation {
 
 export function formatAuthorsIndonesian(authors: string[]): string {
   if (!authors || authors.length === 0) return "Anonim.";
-  
+
   if (authors.length === 1) {
     return authors[0].endsWith('.') ? authors[0] : `${authors[0]}.`;
   }
-  
+
   if (authors.length === 2) {
     let a1 = authors[0];
     let a2 = authors[1].replace(/\.$/, '');
     return `${a1} dan ${a2}.`;
   }
-  
+
   const allButLast = authors.slice(0, -1);
   const last = authors[authors.length - 1].replace(/\.$/, '');
-  
+
   return `${allButLast.join(', ')} dan ${last}.`;
 }
 
@@ -307,13 +307,15 @@ function cleanPunctuation(str: string): string {
 export function toTitleCase(title: string): string {
   if (!title) return title;
   const exceptions = new Set([
-     // Indonesian
+    // Indonesian
     'dan', 'atau', 'tetapi', 'melainkan', 'sedangkan', 'serta', 'lalu', 'kemudian',
     'dengan', 'secara', 'sebagai', 'kepada', 'dari', 'ke', 'oleh', 'pada', 'untuk',
     'tentang', 'bagi', 'dalam', 'antara', 'di', 'yang', 'terhadap',
     // English
     'and', 'or', 'but', 'nor', 'so', 'yet', 'for', 'a', 'an', 'the',
-    'as', 'at', 'by', 'down', 'in', 'of', 'on', 'to', 'with', 'over', 'into'
+    'as', 'at', 'by', 'down', 'in', 'of', 'on', 'to', 'with', 'over', 'into',
+    // Singkatan taksonomi — harus tetap lowercase
+    'sp', 'spp',
   ]);
 
   // Split on <i>...</i> blocks agar nama ilmiah tidak ikut di-capitalize
@@ -336,16 +338,35 @@ export function toTitleCase(title: string): string {
 
 // Kata-kata umum (Indonesia & Inggris) yang tidak boleh dianggap nama ilmiah
 const COMMON_WORDS = new Set([
-  'terhadap','dengan','dalam','antara','sebagai','secara','kepada','tentang',
-  'melalui','selama','setelah','sebelum','karena','sehingga','namun','tetapi',
-  'bahwa','ketika','dimana','digunakan','dilakukan','dihasilkan',
-  'penelitian','perlakuan','kelompok','metode','analisis','sampel','parameter',
-  'pengamatan','penggunaan','pemberian','pertumbuhan','produksi','budidaya',
-  'peningkatan','pengaruh','perbandingan','evaluasi','identifikasi','potensi',
-  'analysis','growth','production','effect','effects','influence','impact',
-  'quality','quantity','content','method','methods','results','study',
-  'review','performance','treatment','control','water','feed','culture',
-  'system','using','based','during','between','among','distribution',
+  // Kata hubung & preposisi Indonesia
+  'terhadap', 'dengan', 'dalam', 'antara', 'sebagai', 'secara', 'kepada', 'tentang',
+  'melalui', 'selama', 'setelah', 'sebelum', 'karena', 'sehingga', 'namun', 'tetapi',
+  'bahwa', 'ketika', 'dimana', 'digunakan', 'dilakukan', 'dihasilkan', 'maupun',
+  // Kata umum akademik Indonesia
+  'penelitian', 'perlakuan', 'kelompok', 'metode', 'analisis', 'sampel', 'parameter',
+  'pengamatan', 'penggunaan', 'pemberian', 'pertumbuhan', 'produksi', 'budidaya',
+  'peningkatan', 'pengaruh', 'perbandingan', 'evaluasi', 'identifikasi', 'potensi',
+  'pengendalian', 'pemeliharaan', 'penambahan', 'pemijahan', 'penetasan', 'perkembangan',
+  'pemanfaatan', 'pengembangan', 'penerapan', 'pencegahan', 'penanggulangan',
+  'kandungan', 'kualitas', 'kinerja', 'konsumsi', 'konsentrasi', 'kepadatan',
+  'kesehatan', 'kecernaan', 'kelangsungan', 'keberlanjutan', 'ketahanan', 'keragaman',
+  'perikanan', 'perairan', 'pembenihan', 'pembesaran', 'performa', 'efisiensi',
+  'kelulushidupan', 'kelangsunganhidup', 'sintasan', 'mortalitas', 'fekunditas',
+  'pendapatan', 'keuntungan', 'kelayakan', 'keberlanjutan', 'produktivitas',
+  'suplementasi', 'fermentasi', 'probiotik', 'prebiotik', 'suplemen', 'ekstrak',
+  'protein', 'vitamin', 'mineral', 'nutrisi', 'lemak', 'karbohidrat', 'serat',
+  'bobot', 'berat', 'kadar', 'tingkat', 'jumlah', 'ukuran', 'panjang', 'lebar',
+  'salinitas', 'temperatur', 'oksigen', 'nitrogen', 'amonia', 'nitrit', 'nitrat',
+  'kolam', 'tambak', 'keramba', 'tangki', 'akuarium', 'wadah', 'sistem', 'media',
+  'pakan', 'pemberian', 'ransum', 'suplemen', 'probiotik', 'mikroba', 'bakteri',
+  // Kata umum Inggris akademik
+  'analysis', 'growth', 'production', 'effect', 'effects', 'influence', 'impact',
+  'quality', 'quantity', 'content', 'method', 'methods', 'results', 'study',
+  'review', 'performance', 'treatment', 'control', 'water', 'feed', 'culture',
+  'system', 'using', 'based', 'during', 'between', 'among', 'distribution',
+  'density', 'protein', 'vitamin', 'mineral', 'survival', 'mortality', 'fecundity',
+  'salinity', 'temperature', 'oxygen', 'nitrogen', 'ammonia', 'nitrite', 'nitrate',
+  'feeding', 'stocking', 'harvesting', 'management', 'monitoring', 'assessment',
 ]);
 
 /**
@@ -368,7 +389,7 @@ export function formatScientificNames(text: string): string {
   // Hanya genus yang di-italic; "sp."/"spp." dibiarkan apa adanya
   let result = text.replace(
     /\b([A-Z][a-z]{2,})\s+([Ss][Pp][Pp]?\.)/g,
-    (_match, genus, sp) => `<i>${genus}</i> ${sp}`
+    (_match, genus, sp) => `<i>${genus}</i> ${sp.toLowerCase()}`
   );
 
   // Pola 2: Binomial nomenclature lengkap
@@ -394,20 +415,20 @@ export function transformCitation(parsed: ParsedCitation): string {
   if (parsed.type === 'article-journal') {
     const title = formattedTitle ? `${formattedTitle}.` : '[judul].';
     const journal = parsed.journal ? `${parsed.journal}.,` : '[jurnal].,';
-    
+
     const v = parsed.volume || '[volume]';
     const i = parsed.issue ? `(${parsed.issue})` : '';
     const p = parsed.pages || '[halaman]';
     const volIssuePages = `${v}${i}: ${p}.`;
-    
+
     return cleanPunctuation(`${authGroup} ${parsed.year || '[tahun]'}. ${title} ${journal} ${volIssuePages}`);
   }
-  
+
   if (parsed.type === 'book') {
     const title = formattedTitle ? `${formattedTitle}.` : '[judul].';
     let pub = parsed.publisher || '';
     let city = parsed.city || '';
-    
+
     if (!city && pub) {
       const indonesianCities = ['Jakarta', 'Yogyakarta', 'Bandung', 'Surabaya', 'Semarang', 'Malang', 'Cilacap', 'Medan', 'Makassar', 'Bali', 'Denpasar', 'Surakarta', 'Solo', 'Bogor', 'Depok', 'Tangerang', 'Bekasi'];
       for (const c of indonesianCities) {
@@ -422,26 +443,26 @@ export function transformCitation(parsed: ParsedCitation): string {
     pub = pub ? pub.replace(/,$/, '').trim() : '[penerbit]';
     city = city ? city.replace(/,$/, '').trim() : '[kota]';
     const pages = parsed.pages ? `${parsed.pages} hlm.` : '[halaman] hlm.';
-    
+
     return cleanPunctuation(`${authGroup} ${parsed.year || '[tahun]'}. ${title} ${pub}, ${city}, ${pages}`);
   }
-  
+
   if (parsed.type === 'paper-conference') {
     const title = formattedTitle ? `${formattedTitle}.` : '[judul].';
     const proc = parsed.proceedingName ? `${parsed.proceedingName}.` : '[nama prosiding].';
     const date = parsed.date ? `${parsed.date}.` : '[tanggal prosiding].';
     const cityCountry = [parsed.city, parsed.country].filter(Boolean).join(', ') || '[kota, negara]';
     const pages = parsed.pages ? `pp. ${parsed.pages}` : 'pp. [halaman]';
-    
+
     return cleanPunctuation(`${authGroup} ${parsed.year || '[tahun]'}. ${title} Dalam: ${proc} ${date} ${cityCountry}, ${pages}.`);
   }
-  
+
   if (parsed.type === 'webpage') {
     const title = formattedTitle ? `${formattedTitle}.` : '[judul].';
     const url = parsed.url ? parsed.url : '[url]';
     // Pedoman: tidak ada spasi antara URL dan (tanggal akses)
     const access = parsed.accessDate ? `(${parsed.accessDate}).` : '([tanggal akses]).';
-    
+
     return cleanPunctuation(`${authGroup} ${parsed.year || '[tahun]'}. ${title} ${url}${access}`);
   }
 
@@ -463,7 +484,7 @@ export function transformWithTemplate(parsed: ParsedCitation, template: string):
   result = result.replace(/\{volume\}/g, parsed.volume || '[volume]');
   result = result.replace(/\{issue\}/g, parsed.issue || '[issue]');
   result = result.replace(/\{pages\}/g, parsed.pages || '[halaman]');
-  
+
   // book city extraction logic (same as transformCitation logic)
   let pub = parsed.publisher || '';
   let city = parsed.city || '';
