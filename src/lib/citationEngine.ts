@@ -22,6 +22,13 @@ export interface ParsedCitation {
   isValid: boolean;
 }
 
+export interface FieldFormats {
+  'article-journal': { title: boolean; journal: boolean; };
+  'book': { title: boolean; publisher: boolean; };
+  'paper-conference': { title: boolean; proceedingName: boolean; };
+  'webpage': { title: boolean; };
+}
+
 export function parseRawCitation(line: string): ParsedCitation {
   const trimmed = line.trim();
   let type: CitationType = 'unknown';
@@ -318,6 +325,8 @@ export function toTitleCase(title: string): string {
     'sp', 'spp',
   ]);
 
+  const isAllCapsTitle = title === title.toUpperCase();
+
   // Split on <i>...</i> blocks agar nama ilmiah tidak ikut di-capitalize
   let isFirstWord = true;
   const segments = title.split(/(<i>.*?<\/i>)/g);
@@ -327,6 +336,16 @@ export function toTitleCase(title: string): string {
       const isFirst = isFirstWord;
       isFirstWord = false;
       const lowerMatch = match.toLowerCase();
+
+      if (!isAllCapsTitle) {
+        // Jika kata adalah ALL CAPS (minimal 2 huruf) ATAU punya huruf besar selain di awal
+        // Contoh: "SNI", "WHO", "IoT", "mRNA", "Asean" (jika ditulis ASEAN)
+        const isAcronymOrMixed = (match === match.toUpperCase() && match.length > 1) || match.slice(1).match(/[A-Z]/);
+        if (isAcronymOrMixed) {
+          return match;
+        }
+      }
+
       if (isFirst || !exceptions.has(lowerMatch)) {
         return match.charAt(0).toUpperCase() + match.slice(1).toLowerCase();
       } else {
@@ -336,13 +355,15 @@ export function toTitleCase(title: string): string {
   }).join('');
 }
 
-// Kata-kata umum (Indonesia & Inggris) yang tidak boleh dianggap nama ilmiah
-const COMMON_WORDS = new Set([
-  // Kata hubung & preposisi Indonesia
+// Daftar hitam kata umum (Indonesia & Inggris) yang TIDAK BOLEH dianggap sebagai bagian dari nama ilmiah
+const BLACKLIST_WORDS = new Set([
+  // Kata hubung, preposisi, & umum Indonesia
   'terhadap', 'dengan', 'dalam', 'antara', 'sebagai', 'secara', 'kepada', 'tentang',
   'melalui', 'selama', 'setelah', 'sebelum', 'karena', 'sehingga', 'namun', 'tetapi',
   'bahwa', 'ketika', 'dimana', 'digunakan', 'dilakukan', 'dihasilkan', 'maupun',
-  // Kata umum akademik Indonesia
+  'yang', 'untuk', 'dari', 'pada', 'dan', 'atau', 'serta', 'oleh', 'ke', 'di',
+  'ini', 'itu', 'tersebut', 'suatu', 'sebuah', 'menjadi', 'merupakan', 'adalah',
+  // Akademik & umum Indonesia
   'penelitian', 'perlakuan', 'kelompok', 'metode', 'analisis', 'sampel', 'parameter',
   'pengamatan', 'penggunaan', 'pemberian', 'pertumbuhan', 'produksi', 'budidaya',
   'peningkatan', 'pengaruh', 'perbandingan', 'evaluasi', 'identifikasi', 'potensi',
@@ -358,16 +379,72 @@ const COMMON_WORDS = new Set([
   'bobot', 'berat', 'kadar', 'tingkat', 'jumlah', 'ukuran', 'panjang', 'lebar',
   'salinitas', 'temperatur', 'oksigen', 'nitrogen', 'amonia', 'nitrit', 'nitrat',
   'kolam', 'tambak', 'keramba', 'tangki', 'akuarium', 'wadah', 'sistem', 'media',
-  'pakan', 'pemberian', 'ransum', 'suplemen', 'probiotik', 'mikroba', 'bakteri',
-  // Kata umum Inggris akademik
+  'pakan', 'ransum', 'mikroba', 'bakteri', 'virus', 'jamur', 'vaksin',
+  'karakteristik', 'profil', 'indikator', 'aspek', 'faktor', 'dampak', 'hubungan',
+  'kajian', 'studi', 'tinjauan', 'pendekatan', 'model', 'simulasi', 'aplikasi',
+  'teknik', 'teknologi', 'inovasi', 'strategi', 'kebijakan', 'manajemen', 'pengelolaan',
+  'komunitas', 'populasi', 'habitat', 'ekosistem', 'lingkungan', 'konservasi',
+  // Bahasa Inggris (Prepositions & Common Words)
+  'the', 'and', 'with', 'for', 'from', 'between', 'among', 'during', 'through',
+  'after', 'before', 'under', 'over', 'into', 'upon', 'about', 'against', 'within',
+  'without', 'which', 'where', 'when', 'what', 'that', 'this', 'these', 'those',
+  'such', 'some', 'many', 'much', 'more', 'most', 'other', 'another', 'each', 'every',
+  'all', 'any', 'both', 'neither', 'either', 'only', 'also', 'very', 'well', 'how',
+  // Akademik & umum Inggris
   'analysis', 'growth', 'production', 'effect', 'effects', 'influence', 'impact',
   'quality', 'quantity', 'content', 'method', 'methods', 'results', 'study',
   'review', 'performance', 'treatment', 'control', 'water', 'feed', 'culture',
-  'system', 'using', 'based', 'during', 'between', 'among', 'distribution',
-  'density', 'protein', 'vitamin', 'mineral', 'survival', 'mortality', 'fecundity',
-  'salinity', 'temperature', 'oxygen', 'nitrogen', 'ammonia', 'nitrite', 'nitrate',
-  'feeding', 'stocking', 'harvesting', 'management', 'monitoring', 'assessment',
+  'system', 'using', 'based', 'distribution', 'density', 'survival', 'mortality',
+  'fecundity', 'salinity', 'temperature', 'oxygen', 'nitrogen', 'ammonia', 'nitrite',
+  'nitrate', 'feeding', 'stocking', 'harvesting', 'management', 'monitoring', 'assessment',
+  'development', 'evaluation', 'identification', 'potential', 'comparison', 'application',
+  'technique', 'technology', 'strategy', 'policy', 'community', 'population', 'habitat',
+  'environment', 'conservation', 'characteristics', 'profile', 'indicator', 'aspect',
+  'factor', 'relationship', 'approach', 'model', 'simulation', 'innovation', 'addition',
+  'supplementation', 'fermentation', 'extract', 'protein', 'vitamin', 'mineral',
+  'nutrition', 'lipid', 'carbohydrate', 'fiber', 'weight', 'level', 'amount', 'size',
+  'length', 'width', 'pond', 'tank', 'aquarium', 'container', 'medium', 'microbe',
+  'bacteria', 'virus', 'fungi', 'vaccine', 'response', 'dynamics', 'structure'
 ]);
+
+// Daftar Genus yang sangat umum di biologi, pertanian, peternakan, perikanan Indonesia.
+// Jika kata pertama cocok dengan ini, maka tingkat keyakinan (confidence) bahwa itu nama ilmiah sangat tinggi.
+const KNOWN_GENERA = new Set([
+  // Ikan & Perairan
+  'clarias', 'oreochromis', 'cyprinus', 'pangasius', 'chanos', 'litopenaeus', 'penaeus',
+  'macrobrachium', 'osphronemus', 'anabas', 'epinephelus', 'lates', 'mugil', 'anguilla',
+  'carassius', 'betta', 'poecilia', 'symphysodon', 'pterophyllum', 'trichogaster',
+  'channa', 'mystus', 'hemibagrus', 'barbonymus', 'osteochilus', 'corydoras', 'kappaphycus',
+  'eucheuma', 'gracilaria', 'sargassum', 'padina', 'ulva', 'caulerpa', 'holothuria',
+  // Tanaman Pertanian & Kehutanan
+  'oryza', 'zea', 'glycine', 'arachis', 'vigna', 'manihot', 'ipomoea', 'solanum',
+  'capsicum', 'lycopersicon', 'brassica', 'allium', 'daucus', 'raphanus', 'cucumis',
+  'citrullus', 'cucurbita', 'sechium', 'luffa', 'momordica', 'amaranthus', 'apium',
+  'musa', 'citrus', 'mangifera', 'durio', 'nephelium', 'garcinia', 'salacca', 'carica',
+  'ananas', 'persea', 'psidium', 'syzygium', 'averrhoa', 'artocarpus', 'cocos', 'elaeis',
+  'hevea', 'theobroma', 'coffea', 'camellia', 'piper', 'myristica', 'cinnamomum',
+  'vanilla', 'saccharum', 'nicotiana', 'gossypium', 'tectona', 'swietenia', 'acacia',
+  'pinus', 'eucalyptus', 'falcataria', 'shorea', 'dipterocarpus',
+  // Hewan Ternak & Peliharaan
+  'bos', 'bubalus', 'capra', 'ovis', 'sus', 'gallus', 'anas', 'cairina', 'columba',
+  'coturnix', 'equus', 'felis', 'canis', 'cavia', 'oryctolagus',
+  // Mikroba & Lainnya
+  'saccharomyces', 'lactobacillus', 'bacillus', 'pseudomonas', 'escherichia', 'vibrio',
+  'aeromonas', 'streptococcus', 'staphylococcus', 'aspergillus', 'penicillium',
+  'rhizopus', 'trichoderma', 'spirulina', 'chlorella', 'skeletonema', 'chaetoceros',
+  'tetraselmis', 'nannochloropsis', 'salmonella', 'shigella', 'mycobacterium'
+]);
+
+/**
+ * Cek apakah sebuah kata kemungkinan besar adalah epitet spesifik (spesies)
+ * berdasarkan akhiran bahasa Latin yang umum.
+ */
+function isLikelyLatin(word: string): boolean {
+  const w = word.toLowerCase();
+  return w.endsWith('us') || w.endsWith('um') || w.endsWith('is') || 
+         w.endsWith('ii') || w.endsWith('ae') || w.endsWith('ensis') ||
+         w.endsWith('as') || w.endsWith('ia') || w.endsWith('ica');
+}
 
 /**
  * Mendeteksi dan membungkus nama ilmiah dengan tag <i>.
@@ -380,25 +457,47 @@ const COMMON_WORDS = new Set([
  *   → keduanya italic sebagai satu unit
  *   Contoh: Clarias gariepinus  →  <i>Clarias gariepinus</i>
  *
- * Diterapkan SEBELUM toTitleCase agar case asli terjaga.
+ * Menggunakan KNOWN_GENERA, suffix Latin, dan BLACKLIST_WORDS untuk akurasi tinggi.
  */
 export function formatScientificNames(text: string): string {
   if (!text) return text;
 
-  // Pola 1: Genus diikuti sp. / spp. / Sp. / Spp. (case-insensitive pada sp bagian)
+  // Pola 1: Genus diikuti sp. / spp. / Sp. / Spp.
   // Hanya genus yang di-italic; "sp."/"spp." dibiarkan apa adanya
   let result = text.replace(
     /\b([A-Z][a-z]{2,})\s+([Ss][Pp][Pp]?\.)/g,
-    (_match, genus, sp) => `<i>${genus}</i> ${sp.toLowerCase()}`
+    (match, genus, sp) => {
+      // Jika genus ada di blacklist, jangan italic
+      if (BLACKLIST_WORDS.has(genus.toLowerCase())) return match;
+      return `<i>${genus}</i> ${sp.toLowerCase()}`;
+    }
   );
 
-  // Pola 2: Binomial nomenclature lengkap
-  // (?<!>) mencegah genus yang sudah di dalam <i>...</i> (diawali >) diproses ulang
+  // Pola 2: Binomial nomenclature lengkap (Dua kata berurutan)
+  // Syarat: Kata 1 (Kapital awal), Kata 2 (Huruf kecil semua)
   result = result.replace(
-    /(?<!>)\b([A-Z][a-z]{3,})\s+([a-z]{6,})\b/g,
+    /(?<!>)\b([A-Z][a-z]{2,})\s+([a-z]{3,})\b/g,
     (match, genus, species) => {
-      if (COMMON_WORDS.has(species)) return match;
-      return `<i>${genus} ${species}</i>`;
+      const lowerGenus = genus.toLowerCase();
+      const lowerSpecies = species.toLowerCase();
+
+      // 1. Filter mutlak: jika salah satu kata ada di blacklist, lewati.
+      if (BLACKLIST_WORDS.has(lowerGenus) || BLACKLIST_WORDS.has(lowerSpecies)) {
+        return match;
+      }
+
+      // 2. Jika genus ada di daftar KNOWN_GENERA, hampir pasti nama ilmiah.
+      if (KNOWN_GENERA.has(lowerGenus)) {
+        return `<i>${genus} ${species}</i>`;
+      }
+
+      // 3. Jika bukan genus yang dikenal, periksa akhiran Latin untuk meyakinkan.
+      // Ini mencegah kata bahasa Inggris acak yang lolos blacklist ter-italicize.
+      if (isLikelyLatin(lowerGenus) || isLikelyLatin(lowerSpecies)) {
+        return `<i>${genus} ${species}</i>`;
+      }
+
+      return match;
     }
   );
 
@@ -469,18 +568,26 @@ export function transformCitation(parsed: ParsedCitation): string {
   return parsed.original;
 }
 
-export function transformWithTemplate(parsed: ParsedCitation, template: string): string {
+export function transformWithTemplate(parsed: ParsedCitation, template: string, formats?: FieldFormats): string {
   if (!parsed.isValid) return parsed.original;
 
   const authGroup = formatAuthorsIndonesian(parsed.authors);
   // Italic nama ilmiah dulu, baru toTitleCase (agar spesies tidak ikut di-capitalize)
-  const formattedTitle = toTitleCase(formatScientificNames(parsed.title));
+  let formattedTitle = toTitleCase(formatScientificNames(parsed.title)) || '[judul]';
+  if (formats && parsed.type in formats && (formats as any)[parsed.type].title) {
+    formattedTitle = `<i>${formattedTitle}</i>`;
+  }
 
   let result = template;
   result = result.replace(/\{authors\}/g, authGroup);
   result = result.replace(/\{year\}/g, parsed.year || '[tahun]');
-  result = result.replace(/\{title\}/g, formattedTitle || '[judul]');
-  result = result.replace(/\{journal\}/g, formatScientificNames(parsed.journal || '') || '[jurnal]');
+  result = result.replace(/\{title\}/g, formattedTitle);
+  
+  let formattedJournal = formatScientificNames(parsed.journal || '') || '[jurnal]';
+  if (formats && parsed.type === 'article-journal' && formats['article-journal'].journal) {
+    formattedJournal = `<i>${formattedJournal}</i>`;
+  }
+  result = result.replace(/\{journal\}/g, formattedJournal);
   result = result.replace(/\{volume\}/g, parsed.volume || '[volume]');
   result = result.replace(/\{issue\}/g, parsed.issue || '[issue]');
   result = result.replace(/\{pages\}/g, parsed.pages || '[halaman]');
@@ -500,12 +607,22 @@ export function transformWithTemplate(parsed: ParsedCitation, template: string):
     }
   }
 
-  result = result.replace(/\{publisher\}/g, pub || '[penerbit]');
+  let pPub = pub || '[penerbit]';
+  if (formats && parsed.type === 'book' && formats['book'].publisher) {
+    pPub = `<i>${pPub}</i>`;
+  }
+  result = result.replace(/\{publisher\}/g, pPub);
   result = result.replace(/\{city\}/g, city || '[kota]');
   result = result.replace(/\{country\}/g, country || '[negara]');
   result = result.replace(/\{url\}/g, parsed.url || '[url]');
   result = result.replace(/\{accessDate\}/g, parsed.accessDate || '[tanggal akses]');
-  result = result.replace(/\{proceedingName\}/g, formatScientificNames(parsed.proceedingName || '') || '[nama prosiding]');
+  
+  let formattedProceeding = formatScientificNames(parsed.proceedingName || '') || '[nama prosiding]';
+  if (formats && parsed.type === 'paper-conference' && formats['paper-conference'].proceedingName) {
+    formattedProceeding = `<i>${formattedProceeding}</i>`;
+  }
+  result = result.replace(/\{proceedingName\}/g, formattedProceeding);
+  
   result = result.replace(/\{date\}/g, parsed.date || '[tanggal prosiding]');
 
   // Clean empty issue parentheses if it has [?] within

@@ -4,12 +4,12 @@
  */
 
 import { useMemo, useState, useEffect } from "react";
-import { parseRawCitation, transformWithTemplate, CitationType } from "./lib/citationEngine";
+import { parseRawCitation, transformWithTemplate, CitationType, FieldFormats } from "./lib/citationEngine";
 import { Copy, CheckSquare, Square, FileText, Book, Globe, Mic, ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
 
 export default function App() {
   const [inputText, setInputText] = useState("");
-  const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
+  const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("asc");
   const [activeTypes, setActiveTypes] = useState<Record<string, boolean>>({
     'article-journal': true,
     'book': true,
@@ -25,6 +25,13 @@ export default function App() {
     'book': '{authors}. {year}. {title}. {publisher}, {city}, {pages} hlm.',
     'paper-conference': '{authors}. {year}. {title}. Dalam: {proceedingName}. {date}. {city}, {country}, pp. {pages}.',
     'webpage': '{authors}. {year}. {title}. {url} ({accessDate}).'
+  });
+
+  const [formatOptions, setFormatOptions] = useState<FieldFormats>({
+    'article-journal': { title: false, journal: false },
+    'book': { title: false, publisher: false },
+    'paper-conference': { title: false, proceedingName: false },
+    'webpage': { title: false },
   });
 
   const handleTypeToggle = (type: string) => {
@@ -54,7 +61,7 @@ export default function App() {
 
       if (parsed.isValid) {
         if (activeTypes[parsed.type]) {
-          reformatted = transformWithTemplate(parsed, templates[parsed.type] || "");
+          reformatted = transformWithTemplate(parsed, templates[parsed.type] || "", formatOptions);
         } else {
           ignored = true;
         }
@@ -90,7 +97,7 @@ export default function App() {
     }
 
     return processedObj;
-  }, [inputText, sortOrder, activeTypes, templates]);
+  }, [inputText, sortOrder, activeTypes, templates, formatOptions]);
 
   const handleCopyAll = () => {
     // Hanya ambil item yang valid DAN tidak diabaikan
@@ -145,8 +152,8 @@ export default function App() {
 
       <header className="h-16 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between z-10 shrink-0">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="PustakaKu Logo" className="w-8 h-8 rounded-full object-cover" />
-          <h1 className="text-xl font-medium tracking-tighter text-white">PustakaKu</h1>
+          <img src="/logo.png" alt="Pustaka-Ku Logo" className="w-8 h-8 rounded-full object-cover" />
+          <h1 className="text-xl font-medium tracking-tighter text-white">Pustaka-Ku</h1>
         </div>
       </header>
 
@@ -176,28 +183,28 @@ export default function App() {
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors border ${activeTypes['article-journal'] ? "bg-white/10 border-white/10 text-white" : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10"}`}
             >
               {activeTypes['article-journal'] ? <CheckSquare className="w-3.5 h-3.5 text-sky-400"/> : <Square className="w-3.5 h-3.5 text-gray-500"/>}
-              <FileText className="w-3 h-3"/> Jurnal
+              Jurnal
             </button>
             <button 
               onClick={() => handleTypeToggle('book')}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors border ${activeTypes['book'] ? "bg-white/10 border-white/10 text-white" : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10"}`}
             >
               {activeTypes['book'] ? <CheckSquare className="w-3.5 h-3.5 text-sky-400"/> : <Square className="w-3.5 h-3.5 text-gray-500"/>}
-              <Book className="w-3 h-3"/> Buku
+              Buku
             </button>
             <button 
               onClick={() => handleTypeToggle('paper-conference')}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors border ${activeTypes['paper-conference'] ? "bg-white/10 border-white/10 text-white" : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10"}`}
             >
               {activeTypes['paper-conference'] ? <CheckSquare className="w-3.5 h-3.5 text-sky-400"/> : <Square className="w-3.5 h-3.5 text-gray-500"/>}
-              <Mic className="w-3 h-3"/> Prosiding
+              Prosiding
             </button>
             <button 
               onClick={() => handleTypeToggle('webpage')}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors border ${activeTypes['webpage'] ? "bg-white/10 border-white/10 text-white" : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10"}`}
             >
               {activeTypes['webpage'] ? <CheckSquare className="w-3.5 h-3.5 text-sky-400"/> : <Square className="w-3 h-3 text-gray-500"/>}
-              <Globe className="w-3 h-3"/> Website
+              Website
             </button>
           </div>
           
@@ -252,6 +259,51 @@ export default function App() {
                       onChange={(e) => setTemplates(t => ({...t, [typeId]: e.target.value}))}
                       className="w-full bg-[#111] border border-white/10 rounded-lg px-3 py-2.5 text-xs text-gray-300 focus:outline-none focus:border-sky-500/50 focus:bg-[#050505] transition-all font-mono"
                     />
+                    <div className="flex flex-wrap gap-3 mt-1 items-center">
+                      <span className="text-[10px] text-gray-500">Cetak Miring (Italic):</span>
+                      {typeId === 'article-journal' && (
+                        <>
+                          <label className="flex items-center gap-1.5 text-[10px] text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
+                            <input type="checkbox" checked={formatOptions['article-journal'].title} onChange={e => setFormatOptions(prev => ({...prev, 'article-journal': {...prev['article-journal'], title: e.target.checked}}))} className="accent-sky-500" />
+                            Judul
+                          </label>
+                          <label className="flex items-center gap-1.5 text-[10px] text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
+                            <input type="checkbox" checked={formatOptions['article-journal'].journal} onChange={e => setFormatOptions(prev => ({...prev, 'article-journal': {...prev['article-journal'], journal: e.target.checked}}))} className="accent-sky-500" />
+                            Nama Jurnal
+                          </label>
+                        </>
+                      )}
+                      {typeId === 'book' && (
+                        <>
+                          <label className="flex items-center gap-1.5 text-[10px] text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
+                            <input type="checkbox" checked={formatOptions['book'].title} onChange={e => setFormatOptions(prev => ({...prev, 'book': {...prev['book'], title: e.target.checked}}))} className="accent-sky-500" />
+                            Judul Buku
+                          </label>
+                          <label className="flex items-center gap-1.5 text-[10px] text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
+                            <input type="checkbox" checked={formatOptions['book'].publisher} onChange={e => setFormatOptions(prev => ({...prev, 'book': {...prev['book'], publisher: e.target.checked}}))} className="accent-sky-500" />
+                            Penerbit
+                          </label>
+                        </>
+                      )}
+                      {typeId === 'paper-conference' && (
+                        <>
+                          <label className="flex items-center gap-1.5 text-[10px] text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
+                            <input type="checkbox" checked={formatOptions['paper-conference'].title} onChange={e => setFormatOptions(prev => ({...prev, 'paper-conference': {...prev['paper-conference'], title: e.target.checked}}))} className="accent-sky-500" />
+                            Judul
+                          </label>
+                          <label className="flex items-center gap-1.5 text-[10px] text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
+                            <input type="checkbox" checked={formatOptions['paper-conference'].proceedingName} onChange={e => setFormatOptions(prev => ({...prev, 'paper-conference': {...prev['paper-conference'], proceedingName: e.target.checked}}))} className="accent-sky-500" />
+                            Nama Prosiding
+                          </label>
+                        </>
+                      )}
+                      {typeId === 'webpage' && (
+                        <label className="flex items-center gap-1.5 text-[10px] text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
+                          <input type="checkbox" checked={formatOptions['webpage'].title} onChange={e => setFormatOptions(prev => ({...prev, 'webpage': {...prev['webpage'], title: e.target.checked}}))} className="accent-sky-500" />
+                          Judul
+                        </label>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -312,20 +364,22 @@ export default function App() {
               <label className="text-sm font-medium text-white tracking-wide">
                 Output Daftar Pustaka
               </label>
-              <button 
-                className={`px-5 py-2 rounded-full font-medium text-xs flex items-center gap-1.5 transition-all duration-300 ease-out border ${isCopied ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30' : 'bg-white text-black border-transparent hover:bg-gray-200'}`}
-                onClick={handleCopyAll}
-              >
-                {isCopied ? (
-                   <>
-                     <CheckSquare className="w-3.5 h-3.5" /> Berhasil Dicopy!
-                   </>
-                ) : (
-                   <>
-                     <Copy className="w-3.5 h-3.5" /> Copy All
-                   </>
-                )}
-              </button>
+              {outputLines.length > 0 && (
+                <button 
+                  className={`px-5 py-2 rounded-full font-medium text-xs flex items-center gap-1.5 transition-all duration-300 ease-out border ${isCopied ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30' : 'bg-white text-black border-transparent hover:bg-gray-200'}`}
+                  onClick={handleCopyAll}
+                >
+                  {isCopied ? (
+                     <>
+                       <CheckSquare className="w-3.5 h-3.5" /> Berhasil Dicopy!
+                     </>
+                  ) : (
+                     <>
+                       <Copy className="w-3.5 h-3.5" /> Copy All
+                     </>
+                  )}
+                </button>
+              )}
             </div>
             
             <div className="flex-1 bg-transparent relative z-10 flex flex-col min-h-0">
