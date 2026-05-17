@@ -3,12 +3,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { parseRawCitation, transformWithTemplate, CitationType, FieldFormats } from "./lib/citationEngine";
-import { Copy, CheckSquare, Square, FileText, Book, Globe, Mic, ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
+import { Copy, CheckSquare, Square, FileText, Book, Globe, Mic, ChevronDown, ChevronRight, AlertTriangle, Download, Save, History, Trash2, X } from "lucide-react";
+
+type SessionLog = {
+  id: string;
+  timestamp: number;
+  inputText: string;
+  sortOrder: "none" | "asc" | "desc";
+  activeTypes: Record<string, boolean>;
+  templates: Record<string, string>;
+  formatOptions: FieldFormats;
+  removeDuplicates: boolean;
+};
 
 export default function App() {
   const [inputText, setInputText] = useState("");
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  // Efek untuk clear text editor ketika state inputText kosong
+  useEffect(() => {
+    if (inputText === "" && editorRef.current) {
+      editorRef.current.innerHTML = "";
+    }
+  }, [inputText]);
+
   const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("asc");
   const [activeTypes, setActiveTypes] = useState<Record<string, boolean>>({
     'article-journal': true,
@@ -34,6 +54,61 @@ export default function App() {
     'webpage': { title: false },
   });
 
+  const [removeDuplicates, setRemoveDuplicates] = useState(true);
+
+  // Riwayat Logs
+  const [logs, setLogs] = useState<SessionLog[]>(() => {
+    const saved = localStorage.getItem("dafpus_sessionLogs");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [isLogsOpen, setIsLogsOpen] = useState(false);
+
+  const [isSaved, setIsSaved] = useState(false);
+
+  const handleSaveLocal = () => {
+    if (!inputText.trim()) return;
+    const newLog: SessionLog = {
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      inputText,
+      sortOrder,
+      activeTypes,
+      templates,
+      formatOptions,
+      removeDuplicates
+    };
+    const newLogs = [newLog, ...logs];
+    setLogs(newLogs);
+    localStorage.setItem("dafpus_sessionLogs", JSON.stringify(newLogs));
+    
+    setIsSaved(true);
+    setTimeout(() => setIsSaved(false), 2000);
+  };
+
+  const handleLoadLog = (log: SessionLog) => {
+    setInputText(log.inputText);
+    setSortOrder(log.sortOrder);
+    setActiveTypes(log.activeTypes);
+    setTemplates(log.templates);
+    setFormatOptions(log.formatOptions);
+    setRemoveDuplicates(log.removeDuplicates);
+    
+    // update editor view
+    if (editorRef.current) {
+      const lines = log.inputText.split(/\r?\n/).filter(line => line.trim() !== "");
+      const html = lines.map(line => `<div>${line}</div>`).join("");
+      editorRef.current.innerHTML = html;
+    }
+    setIsLogsOpen(false);
+  };
+
+  const handleDeleteLog = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const newLogs = logs.filter(l => l.id !== id);
+    setLogs(newLogs);
+    localStorage.setItem("dafpus_sessionLogs", JSON.stringify(newLogs));
+  };
+
   const handleTypeToggle = (type: string) => {
     setActiveTypes(prev => ({ ...prev, [type]: !prev[type] }));
   };
@@ -51,6 +126,8 @@ export default function App() {
 
   const outputLines = useMemo(() => {
     const lines = inputText.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+
+    const seenKeys = new Set<string>();
 
     let processedObj = lines.map(line => {
       const parsed = parseRawCitation(line);
@@ -77,16 +154,30 @@ export default function App() {
       let sortKey = parsed.authors && parsed.authors.length > 0 ? parsed.authors[0].toLowerCase() : line.toLowerCase();
       sortKey = sortKey.replace(/^[^a-z]+/, "");
       
+      // Buat key unik untuk deteksi duplikat (menggabungkan author, tahun, dan judul yang dinormalisasi)
+      const dedupeKey = parsed.isValid 
+        ? `${parsed.authors.join('').toLowerCase().replace(/[^a-z0-9]/g, '')}-${parsed.year}-${parsed.title.toLowerCase().replace(/[^a-z0-9]/g, '')}`
+        : line.toLowerCase().replace(/[^a-z0-9]/g, '');
+
       return { 
         original: line, 
         reformatted, 
         sortKey, 
+        dedupeKey,
         isValid: parsed.isValid,
         type: parsed.type,
         typeLabel,
         ignored
       };
     });
+
+    if (removeDuplicates) {
+      processedObj = processedObj.filter(item => {
+        if (seenKeys.has(item.dedupeKey)) return false;
+        seenKeys.add(item.dedupeKey);
+        return true;
+      });
+    }
 
     if (sortOrder !== "none") {
       processedObj = [...processedObj].sort((a, b) => {
@@ -97,7 +188,7 @@ export default function App() {
     }
 
     return processedObj;
-  }, [inputText, sortOrder, activeTypes, templates, formatOptions]);
+  }, [inputText, sortOrder, activeTypes, templates, formatOptions, removeDuplicates]);
 
   const handleCopyAll = () => {
     // Hanya ambil item yang valid DAN tidak diabaikan
@@ -139,8 +230,42 @@ export default function App() {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
+  const handleDownloadWord = () => {
+    const lines = outputLines
+      .filter(item => item.isValid && !item.ignored)
+      .map(item => item.reformatted);
+
+    const pStyle = [
+      'font-family:Times New Roman,serif',
+      'font-size:12pt',
+      'margin-top:0',
+      'margin-bottom:0',
+      'text-align:justify',
+      'text-indent:-36pt',
+      'margin-left:36pt',
+    ].join(';');
+
+    const htmlText = `<html>
+      <head><meta charset="utf-8"></head>
+      <body>${lines.map(html => `<p style="${pStyle}">${html}</p>`).join('')}</body>
+    </html>`;
+
+    const blob = new Blob([htmlText], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Daftar_Pustaka.doc';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleSortAsc = () => setSortOrder(prev => prev === "asc" ? "none" : "asc");
   const handleSortDesc = () => setSortOrder(prev => prev === "desc" ? "none" : "desc");
+
+  const validLinesCount = inputText.split("\n").map(l => l.trim()).filter(l => l.length > 0).length;
+  const duplicateCount = removeDuplicates ? (validLinesCount - outputLines.length) : 0;
 
   return (
     <div className="min-h-[100dvh] w-full flex flex-col bg-[#050505] text-gray-300 font-sans relative selection:bg-white/20 selection:text-white scroll-smooth">
@@ -150,12 +275,75 @@ export default function App() {
         <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] bg-indigo-900/10 rounded-full blur-[100px]"></div>
       </div>
 
-      <header className="h-16 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between z-10 shrink-0">
+      <header className="h-16 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between z-10 shrink-0 relative">
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="Pustaka-Ku Logo" className="w-8 h-8 rounded-full object-cover" />
           <h1 className="text-xl font-medium tracking-tighter text-white">Pustaka-Ku</h1>
         </div>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={handleSaveLocal}
+            className={`px-3 py-2 sm:px-4 rounded-lg text-xs font-medium flex items-center gap-2 transition-all border ${isSaved ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-white/5 text-gray-300 border-white/10 hover:bg-white/10"}`}
+          >
+            {isSaved ? <CheckSquare className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+            <span>{isSaved ? "Tersimpan!" : "Simpan Sesi"}</span>
+          </button>
+          <button
+            onClick={() => setIsLogsOpen(true)}
+            className="px-3 py-2 sm:px-4 rounded-lg text-xs font-medium flex items-center gap-2 transition-all border bg-white/5 text-gray-300 border-white/10 hover:bg-white/10"
+          >
+            <History className="w-4 h-4" />
+            <span>Riwayat</span>
+          </button>
+        </div>
       </header>
+
+      {/* Logs Modal */}
+      {isLogsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-[#111] border border-white/10 rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+            <div className="p-4 border-b border-white/5 flex justify-between items-center bg-[#050505]">
+              <h2 className="text-white font-medium flex items-center gap-2">
+                <History className="w-5 h-5 text-gray-400" /> Riwayat Sesi Tersimpan
+              </h2>
+              <button onClick={() => setIsLogsOpen(false)} className="p-1 rounded-full hover:bg-white/10 text-gray-400 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 max-h-[60vh] overflow-y-auto custom-scrollbar flex flex-col gap-3">
+              {logs.length === 0 ? (
+                <div className="text-center py-10 text-gray-500 text-sm italic">
+                  Belum ada sesi yang tersimpan.
+                </div>
+              ) : (
+                logs.map(log => (
+                  <div 
+                    key={log.id} 
+                    onClick={() => handleLoadLog(log)}
+                    className="p-3 border border-white/5 bg-white/5 hover:bg-white/10 rounded-xl cursor-pointer transition-colors group flex justify-between items-start"
+                  >
+                    <div className="flex flex-col gap-1 pr-4">
+                      <span className="text-sm text-gray-200 font-medium">
+                        {new Date(log.timestamp).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </span>
+                      <span className="text-xs text-gray-500 line-clamp-2">
+                        {log.inputText || "Sesi Kosong"}
+                      </span>
+                    </div>
+                    <button 
+                      onClick={(e) => handleDeleteLog(e, log.id)}
+                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      title="Hapus riwayat ini"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 flex flex-col p-4 sm:p-6 gap-4 sm:gap-6 z-10 w-full max-w-7xl mx-auto xl:max-w-none min-h-0">
         
@@ -209,7 +397,16 @@ export default function App() {
           </div>
           
           <div className="flex items-center justify-between lg:justify-end gap-2 w-full lg:w-auto border-t lg:border-t-0 border-white/5 pt-3 lg:pt-0">
-            <span className="text-[10px] font-medium text-gray-500 uppercase tracking-widest mr-2 shrink-0">Sortir:</span>
+            <button
+              onClick={() => setRemoveDuplicates(!removeDuplicates)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors border mr-2 relative ${removeDuplicates ? "bg-white/10 border-white/10 text-white" : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10"}`}
+              title="Hapus daftar pustaka yang ganda/duplikat"
+            >
+              {removeDuplicates ? <CheckSquare className="w-3.5 h-3.5 text-sky-400" /> : <Square className="w-3.5 h-3.5 text-gray-500" />}
+              Hapus Duplikat
+            </button>
+
+            <span className="text-[10px] font-medium text-gray-500 uppercase tracking-widest mr-2 shrink-0 hidden sm:inline-block">Sortir:</span>
             <div className="flex bg-black/40 border border-white/5 rounded-lg p-1 w-full lg:w-auto">
               <button 
                 onClick={handleSortAsc}
@@ -343,44 +540,89 @@ export default function App() {
               {inputText && (
                 <button
                   onClick={() => setInputText("")}
-                  className="px-4 py-1.5 rounded-full text-xs font-medium border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all duration-200"
+                  className="px-4 py-1.5 rounded-lg text-xs font-medium border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all duration-200"
                 >
                   Clear All
                 </button>
               )}
             </div>
-            <textarea 
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder={"Masukkan Pustaka di sini"}
-              className="flex-1 p-6 sm:p-8 lg:p-10 font-light text-[15px] sm:text-base leading-relaxed sm:leading-loose text-gray-300 focus:outline-none resize-none placeholder:text-gray-600 min-h-0 w-full bg-transparent overflow-y-auto overscroll-contain text-justify custom-scrollbar touch-pan-y"
+
+            {/* Sub-header for info */}
+            {validLinesCount > 0 && (
+              <div className="px-6 py-3 border-b border-white/5 bg-[#0a0a0a]/50 flex justify-between items-center shrink-0">
+                <span className="text-xs text-gray-500 font-light">
+                  Mendeteksi {validLinesCount} baris pustaka mentah.
+                </span>
+              </div>
+            )}
+            <div 
+              ref={editorRef}
+              contentEditable
+              onInput={(e) => setInputText(e.currentTarget.innerText)}
+              onPaste={(e) => {
+                e.preventDefault();
+                const text = e.clipboardData.getData('text/plain');
+                if (!text) return;
+                
+                // Pisahkan per baris lalu bungkus dengan div yang punya class hanging indent
+                const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
+                const html = lines.map(line => `<div>${line}</div>`).join("");
+                
+                document.execCommand('insertHTML', false, html);
+              }}
+              data-placeholder="Masukkan Pustaka di sini"
+              className="flex-1 p-6 sm:p-8 lg:p-10 font-light text-[15px] sm:text-base leading-relaxed sm:leading-loose text-gray-300 focus:outline-none min-h-0 w-full bg-transparent overflow-y-auto overscroll-contain text-justify custom-scrollbar touch-pan-y empty:before:content-[attr(data-placeholder)] empty:before:text-gray-600 empty:before:pointer-events-none [&>div]:pl-8 sm:[&>div]:pl-10 [&>div]:-indent-8 sm:[&>div]:-indent-10"
             />
           </div>
 
           <div className="xl:flex-1 w-full flex flex-col glass-card rounded-3xl h-[400px] xl:h-[450px] 2xl:h-[550px] min-h-0 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none z-0"></div>
 
-            <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center shrink-0 relative z-10 min-h-[72px]">
-              <label className="text-sm font-medium text-white tracking-wide">
+            <div className="px-4 sm:px-6 py-4 border-b border-white/5 flex flex-row justify-between items-center gap-2 shrink-0 relative z-10 min-h-[72px]">
+              <label className="text-sm font-medium text-white tracking-wide truncate">
                 Output Daftar Pustaka
               </label>
+
               {outputLines.length > 0 && (
-                <button 
-                  className={`px-5 py-2 rounded-full font-medium text-xs flex items-center gap-1.5 transition-all duration-300 ease-out border ${isCopied ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30' : 'bg-white text-black border-transparent hover:bg-gray-200'}`}
-                  onClick={handleCopyAll}
-                >
-                  {isCopied ? (
-                     <>
-                       <CheckSquare className="w-3.5 h-3.5" /> Berhasil Dicopy!
-                     </>
-                  ) : (
-                     <>
-                       <Copy className="w-3.5 h-3.5" /> Copy All
-                     </>
-                  )}
-                </button>
+                <div className="flex items-center gap-2 w-auto justify-end shrink-0">
+                  <button 
+                    className="flex-none justify-center px-3 py-2 rounded-lg font-medium text-xs flex items-center gap-1.5 transition-all duration-300 ease-out border bg-blue-600/10 text-blue-400 border-blue-500/20 hover:bg-blue-600/20 hover:border-blue-500/40 whitespace-nowrap"
+                    onClick={handleDownloadWord}
+                    title="Download sebagai file Word (.doc)"
+                  >
+                    <Download className="w-4 h-4" /> Word
+                  </button>
+                  <button 
+                    className={`flex-none justify-center px-4 py-2 rounded-lg font-medium text-xs flex items-center gap-1.5 transition-all duration-300 ease-out border whitespace-nowrap ${isCopied ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-white text-black border-transparent hover:bg-gray-200'}`}
+                    onClick={handleCopyAll}
+                  >
+                    {isCopied ? (
+                       <>
+                         <CheckSquare className="w-4 h-4" /> Copied!
+                       </>
+                    ) : (
+                       <>
+                         <Copy className="w-4 h-4" /> Copy
+                       </>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
+
+            {/* Sub-header for info & badge */}
+            {outputLines.length > 0 && (
+              <div className="px-6 py-3 border-b border-white/5 bg-[#0a0a0a]/50 flex justify-between items-center shrink-0 relative z-10">
+                <span className="text-xs text-gray-500 font-light">
+                  Menampilkan {outputLines.filter(item => item.isValid && !item.ignored).length} pustaka hasil proses.
+                </span>
+                {duplicateCount > 0 && removeDuplicates && (
+                  <span className="bg-amber-500/10 border border-amber-500/30 text-amber-500 px-2.5 py-1 rounded-md text-[10px] font-medium tracking-wide">
+                    {duplicateCount} Duplikat Dihapus
+                  </span>
+                )}
+              </div>
+            )}
             
             <div className="flex-1 bg-transparent relative z-10 flex flex-col min-h-0">
               <div className="flex-1 p-6 sm:p-8 lg:p-10 overflow-y-auto overscroll-contain selection:bg-white/20 selection:text-white min-h-0 custom-scrollbar touch-pan-y w-full">
@@ -390,7 +632,7 @@ export default function App() {
                       <span>Hasil format akan muncul di sini.</span>
                     </div>
                   ) : (
-                    <div className="font-light text-[15px] sm:text-base leading-relaxed sm:leading-loose text-gray-300 space-y-0 text-justify pb-10">
+                    <div className="font-light text-[15px] sm:text-base leading-relaxed sm:leading-loose text-gray-300 space-y-0 text-justify">
                       {outputLines.map((item, idx) => {
                         const currentText = item.reformatted;
 
@@ -420,8 +662,11 @@ export default function App() {
                   </div>
                 )}
               </div>
+
+
+              </div>
             </div>
-            </div>
+
           </div>
         </section>
       </main>
