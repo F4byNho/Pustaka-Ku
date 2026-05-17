@@ -5,7 +5,7 @@
 
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { parseRawCitation, transformWithTemplate, CitationType, FieldFormats } from "./lib/citationEngine";
-import { Copy, CheckSquare, Square, FileText, Book, Globe, Mic, ChevronDown, ChevronRight, AlertTriangle, Download, Save, History, Trash2, X } from "lucide-react";
+import { Copy, CheckSquare, Square, FileText, Book, Globe, Mic, ChevronDown, ChevronRight, AlertTriangle, Download, Save, History, Trash2, X, DownloadCloud, Smartphone } from "lucide-react";
 
 type SessionLog = {
   id: string;
@@ -21,6 +21,46 @@ type SessionLog = {
 export default function App() {
   const [inputText, setInputText] = useState("");
   const editorRef = useRef<HTMLDivElement>(null);
+
+  // PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+      setIsInstallable(false);
+      console.log('PWA was installed');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    // Check if app is already running in standalone mode (already installed/opened as PWA)
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
+      setIsInstallable(false);
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User response to the install prompt: ${outcome}`);
+    setDeferredPrompt(null);
+    setIsInstallable(false);
+  };
 
   // Efek untuk clear text editor ketika state inputText kosong
   useEffect(() => {
@@ -190,6 +230,8 @@ export default function App() {
     return processedObj;
   }, [inputText, sortOrder, activeTypes, templates, formatOptions, removeDuplicates]);
 
+  const hasValidOutput = outputLines.some(item => item.isValid && !item.ignored);
+
   const handleCopyAll = () => {
     // Hanya ambil item yang valid DAN tidak diabaikan
     const lines = outputLines
@@ -281,20 +323,31 @@ export default function App() {
           <h1 className="text-xl font-medium tracking-tighter text-white">Pustaka-Ku</h1>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            onClick={handleSaveLocal}
-            className={`px-3 py-2 sm:px-4 rounded-lg text-xs font-medium flex items-center gap-2 transition-all border ${isSaved ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-white/5 text-gray-300 border-white/10 hover:bg-white/10"}`}
-          >
-            {isSaved ? <CheckSquare className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-            <span>{isSaved ? "Tersimpan!" : "Simpan Sesi"}</span>
-          </button>
-          <button
-            onClick={() => setIsLogsOpen(true)}
-            className="px-3 py-2 sm:px-4 rounded-lg text-xs font-medium flex items-center gap-2 transition-all border bg-white/5 text-gray-300 border-white/10 hover:bg-white/10"
-          >
-            <History className="w-4 h-4" />
-            <span>Riwayat</span>
-          </button>
+          {isInstallable && (
+            <button
+              onClick={handleInstallApp}
+              className="px-3 py-2 sm:px-4 rounded-lg text-xs font-medium flex items-center gap-2 transition-all border bg-white/5 text-gray-300 border-white/10 hover:bg-white/10"
+            >
+              <DownloadCloud className="w-4 h-4" />
+              <span>Install Aplikasi</span>
+            </button>
+          )}
+          <div className="hidden sm:flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={handleSaveLocal}
+              className={`px-3 py-2 sm:px-4 rounded-lg text-xs font-medium flex items-center gap-2 transition-all border ${isSaved ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-white/5 text-gray-300 border-white/10 hover:bg-white/10"}`}
+            >
+              {isSaved ? <CheckSquare className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+              <span>{isSaved ? "Tersimpan!" : "Simpan Sesi"}</span>
+            </button>
+            <button
+              onClick={() => setIsLogsOpen(true)}
+              className="px-3 py-2 sm:px-4 rounded-lg text-xs font-medium flex items-center gap-2 transition-all border bg-white/5 text-gray-300 border-white/10 hover:bg-white/10"
+            >
+              <History className="w-4 h-4" />
+              <span>Riwayat</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -355,6 +408,24 @@ export default function App() {
           </div>
         </div>
 
+        {/* Mobile Session & History Buttons */}
+        <div className="flex sm:hidden items-center gap-2 shrink-0">
+          <button
+            onClick={handleSaveLocal}
+            className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition-all border ${isSaved ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-white/5 text-gray-300 border-white/10 hover:bg-white/10"}`}
+          >
+            {isSaved ? <CheckSquare className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+            <span>{isSaved ? "Tersimpan!" : "Simpan Sesi"}</span>
+          </button>
+          <button
+            onClick={() => setIsLogsOpen(true)}
+            className="flex-1 py-2 px-3 rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition-all border bg-white/5 text-gray-300 border-white/10 hover:bg-white/10"
+          >
+            <History className="w-4 h-4" />
+            <span>Riwayat</span>
+          </button>
+        </div>
+
         {/* Top Control Bar */}
         <section className="glass-card rounded-2xl p-3 sm:p-4 shrink-0 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
@@ -399,7 +470,7 @@ export default function App() {
           <div className="flex items-center justify-between lg:justify-end gap-2 w-full lg:w-auto border-t lg:border-t-0 border-white/5 pt-3 lg:pt-0">
             <button
               onClick={() => setRemoveDuplicates(!removeDuplicates)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors border mr-2 relative ${removeDuplicates ? "bg-white/10 border-white/10 text-white" : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10"}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors border mr-2 relative whitespace-nowrap shrink-0 ${removeDuplicates ? "bg-white/10 border-white/10 text-white" : "bg-white/5 border-white/5 text-gray-400 hover:bg-white/10"}`}
               title="Hapus daftar pustaka yang ganda/duplikat"
             >
               {removeDuplicates ? <CheckSquare className="w-3.5 h-3.5 text-sky-400" /> : <Square className="w-3.5 h-3.5 text-gray-500" />}
@@ -407,16 +478,16 @@ export default function App() {
             </button>
 
             <span className="text-[10px] font-medium text-gray-500 uppercase tracking-widest mr-2 shrink-0 hidden sm:inline-block">Sortir:</span>
-            <div className="flex bg-black/40 border border-white/5 rounded-lg p-1 w-full lg:w-auto">
+            <div className="flex bg-black/40 border border-white/5 rounded-lg p-1 w-28 sm:w-auto shrink-0">
               <button 
                 onClick={handleSortAsc}
-                className={`flex-1 lg:flex-none py-1.5 px-4 text-xs font-medium transition-all rounded-md ${sortOrder === "asc" ? "bg-white/10 text-white shadow-sm" : "text-gray-500 hover:text-gray-300"}`}
+                className={`flex-1 lg:flex-none py-1.5 px-2 sm:px-4 text-xs font-medium transition-all rounded-md ${sortOrder === "asc" ? "bg-white/10 text-white shadow-sm" : "text-gray-500 hover:text-gray-300"}`}
               >
                 A-Z
               </button>
               <button 
                 onClick={handleSortDesc}
-                className={`flex-1 lg:flex-none py-1.5 px-4 text-xs font-medium transition-all rounded-md ${sortOrder === "desc" ? "bg-white/10 text-white shadow-sm" : "text-gray-500 hover:text-gray-300"}`}
+                className={`flex-1 lg:flex-none py-1.5 px-2 sm:px-4 text-xs font-medium transition-all rounded-md ${sortOrder === "desc" ? "bg-white/10 text-white shadow-sm" : "text-gray-500 hover:text-gray-300"}`}
               >
                 Z-A
               </button>
@@ -535,7 +606,7 @@ export default function App() {
           <div className="xl:flex-1 w-full flex flex-col glass-card rounded-3xl h-[400px] xl:h-[450px] 2xl:h-[550px] min-h-0">
             <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center shrink-0 min-h-[72px]">
               <label className="text-sm font-medium text-white tracking-wide">
-                Input Daftar Pustaka Mentah
+                Input Pustaka
               </label>
               {inputText && (
                 <button
@@ -580,10 +651,10 @@ export default function App() {
 
             <div className="px-4 sm:px-6 py-4 border-b border-white/5 flex flex-row justify-between items-center gap-2 shrink-0 relative z-10 min-h-[72px]">
               <label className="text-sm font-medium text-white tracking-wide truncate">
-                Output Daftar Pustaka
+                Output Pustaka
               </label>
 
-              {outputLines.length > 0 && (
+              {hasValidOutput && (
                 <div className="flex items-center gap-2 w-auto justify-end shrink-0">
                   <button 
                     className="flex-none justify-center px-3 py-2 rounded-lg font-medium text-xs flex items-center gap-1.5 transition-all duration-300 ease-out border bg-blue-600/10 text-blue-400 border-blue-500/20 hover:bg-blue-600/20 hover:border-blue-500/40 whitespace-nowrap"
