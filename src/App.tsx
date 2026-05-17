@@ -385,7 +385,7 @@ export default function App() {
                     </div>
                     <button 
                       onClick={(e) => handleDeleteLog(e, log.id)}
-                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0"
                       title="Hapus riwayat ini"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -642,7 +642,7 @@ export default function App() {
                 document.execCommand('insertHTML', false, html);
               }}
               data-placeholder="Masukkan Pustaka di sini"
-              className="flex-1 p-6 sm:p-8 lg:p-10 font-light text-[15px] sm:text-base leading-relaxed sm:leading-loose text-gray-300 focus:outline-none min-h-0 w-full bg-transparent overflow-y-auto overscroll-contain text-justify custom-scrollbar touch-pan-y empty:before:content-[attr(data-placeholder)] empty:before:text-gray-600 empty:before:pointer-events-none [&>div]:pl-8 sm:[&>div]:pl-10 [&>div]:-indent-8 sm:[&>div]:-indent-10"
+              className="flex-1 py-6 pr-6 pl-8 sm:py-8 sm:pr-8 sm:pl-10 lg:py-10 lg:pr-10 font-light text-[15px] sm:text-base leading-relaxed sm:leading-loose text-gray-300 focus:outline-none min-h-0 w-full bg-transparent overflow-y-auto overscroll-contain text-justify custom-scrollbar touch-pan-y empty:before:content-[attr(data-placeholder)] empty:before:text-gray-600 empty:before:pointer-events-none -indent-8 sm:-indent-10"
             />
           </div>
 
