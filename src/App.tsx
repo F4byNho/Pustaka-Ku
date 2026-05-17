@@ -642,7 +642,7 @@ export default function App() {
                 document.execCommand('insertHTML', false, html);
               }}
               data-placeholder="Masukkan Pustaka di sini"
-              className="flex-1 py-6 pr-6 pl-8 sm:py-8 sm:pr-8 sm:pl-10 lg:py-10 lg:pr-10 font-light text-[15px] sm:text-base leading-relaxed sm:leading-loose text-gray-300 focus:outline-none min-h-0 w-full bg-transparent overflow-y-auto overscroll-contain text-justify custom-scrollbar touch-pan-y empty:before:content-[attr(data-placeholder)] empty:before:text-gray-600 empty:before:pointer-events-none -indent-8 sm:-indent-10"
+              className="flex-1 py-6 pr-6 pl-[56px] sm:py-8 sm:pr-8 sm:pl-[72px] lg:py-10 lg:pr-10 lg:pl-[80px] font-light text-[15px] sm:text-base leading-relaxed sm:leading-loose text-gray-300 focus:outline-none min-h-0 w-full bg-transparent overflow-y-auto overscroll-contain text-justify custom-scrollbar touch-pan-y empty:before:content-[attr(data-placeholder)] empty:before:text-gray-600 empty:before:pointer-events-none -indent-8 sm:-indent-10"
             />
           </div>
 
